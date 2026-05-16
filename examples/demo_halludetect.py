@@ -25,6 +25,11 @@ import json
 import multiprocessing as mp
 import os
 import sys
+from pathlib import Path
+
+# Make the project root importable so `hallucination_detection` resolves when
+# the script is invoked as `python examples/demo_halludetect.py ...`.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import torch
 
