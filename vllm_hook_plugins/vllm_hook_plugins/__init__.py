@@ -6,6 +6,7 @@ from vllm_hook_plugins.workers.probe_hidden_states_worker import ProbeHiddenStat
 from vllm_hook_plugins.analyzers.attention_tracker_analyzer import AttntrackerAnalyzer
 from vllm_hook_plugins.analyzers.core_reranker_analyzer import CorerAnalyzer
 from vllm_hook_plugins.analyzers.hidden_states_analyzer import HiddenStatesAnalyzer
+from vllm_hook_plugins.analyzers.hallucination_analyzer import HallucinationAnalyzer
 
 
 def register_plugins():
@@ -19,6 +20,7 @@ def register_plugins():
     PluginRegistry.register_analyzer("attn_tracker",   AttntrackerAnalyzer)
     PluginRegistry.register_analyzer("core_reranker",  CorerAnalyzer)
     PluginRegistry.register_analyzer("hidden_states",  HiddenStatesAnalyzer)
+    PluginRegistry.register_analyzer("hallucination",  HallucinationAnalyzer)
 
 __all__ = [
     "PluginRegistry",
@@ -29,5 +31,6 @@ __all__ = [
     "AttntrackerAnalyzer",
     "CorerAnalyzer",
     "HiddenStatesAnalyzer",
+    "HallucinationAnalyzer",
     "register_plugins"
 ]
