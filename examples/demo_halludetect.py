@@ -51,7 +51,8 @@ INFER_CFG = "model_configs/hallucination_detection/Qwen2.5-3B-Instruct.infer.jso
 
 def _make_llm(config_file: str):
     from vllm_hook_plugins import HookLLM
-    return HookLLM(
+
+    base_kwargs = dict(
         model=MODEL,
         worker_name="probe_hidden_states",
         analyzer_name="hidden_states",
@@ -66,6 +67,15 @@ def _make_llm(config_file: str):
         enable_hook=True,
         tensor_parallel_size=1,
     )
+    # vLLM v0.21+ enables async scheduling by default, which desyncs the
+    # framework's forward-hook capture (execute_model fires before the
+    # batch's attn_metadata is ready, so query_start_loc is None and the
+    # hook returns without recording — no safetensors get written).
+    # Force sync scheduling on versions that accept the kwarg.
+    try:
+        return HookLLM(**base_kwargs, async_scheduling=False)
+    except TypeError:
+        return HookLLM(**base_kwargs)
 
 
 def stage_extract():
