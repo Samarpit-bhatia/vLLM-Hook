@@ -28,8 +28,14 @@ import sys
 from pathlib import Path
 
 # Make the project root importable so `hallucination_detection` resolves when
-# the script is invoked as `python examples/demo_halludetect.py ...`.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# the script is invoked as `python examples/demo_halludetect.py ...`. Append
+# (not insert at 0) so the pip-installed `vllm_hook_plugins` package wins over
+# the outer source dir of the same name at the project root — the outer is a
+# distribution root, not the package; only the pip-installed inner package
+# resolves its own absolute imports correctly.
+_root = str(Path(__file__).resolve().parent.parent)
+if _root not in sys.path:
+    sys.path.append(_root)
 
 import torch
 
