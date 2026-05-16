@@ -44,6 +44,10 @@ os.environ["VLLM_USE_V1"] = "1"
 os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 os.environ.setdefault("VLLM_HOOK_USE_SAFETENSORS", "1")
 os.environ.setdefault("VLLM_HOOK_ASYNC_SAVE", "1")
+# T4 (SM 7.5) doesn't support FlashAttention 2 or 3. vllm 0.7.3 won't fall
+# back automatically and dies with "Unsupported FA version: None". Force
+# xformers, which works on every CUDA SM. Override only if not already set.
+os.environ.setdefault("VLLM_ATTENTION_BACKEND", "XFORMERS")
 
 MODEL = "Qwen/Qwen2.5-3B-Instruct"
 CACHE_DIR = "./cache/"
