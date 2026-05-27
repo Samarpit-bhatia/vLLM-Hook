@@ -44,11 +44,6 @@ os.environ["VLLM_USE_V1"] = "1"
 os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 os.environ.setdefault("VLLM_HOOK_USE_SAFETENSORS", "1")
 os.environ.setdefault("VLLM_HOOK_ASYNC_SAVE", "1")
-# T4 (SM 7.5) doesn't support FlashAttention 2 or 3. vllm's V1 engine
-# (which the hook framework requires) does NOT accept XFORMERS — that's a
-# V0-only backend. V1 supports FLASH_ATTN / TRITON_ATTN / FLASHINFER.
-# TRITON_ATTN works on every CUDA SM and ships with vllm (no extra install).
-os.environ.setdefault("VLLM_ATTENTION_BACKEND", "TRITON_ATTN")
 
 MODEL = "Qwen/Qwen2.5-3B-Instruct"
 CACHE_DIR = "./cache/"
@@ -60,33 +55,30 @@ TRAIN_CFG = "model_configs/hallucination_detection/Qwen2.5-3B-Instruct.train.jso
 INFER_CFG = "model_configs/hallucination_detection/Qwen2.5-3B-Instruct.infer.json"
 
 
-def _make_llm(config_file: str):
+def _make_llm(config_file: str, analyzer_name: str = "hidden_states"):
     from vllm_hook_plugins import HookLLM
 
-    base_kwargs = dict(
+    # Tuned for 8 GB laptop GPUs (RTX 4060 etc.). Qwen2.5-3B fp16 weights are
+    # ~5.8 GB. We bump gpu_memory_utilization to 0.92 (~7.5 GB budget) and
+    # cap max_num_batched_tokens to 2048 — vllm's default (8192) would
+    # reserve KV blocks for hypothetical massive batches and OOM the cache.
+    return HookLLM(
         model=MODEL,
         worker_name="probe_hidden_states",
-        analyzer_name="hidden_states",
+        analyzer_name=analyzer_name,
         config_file=config_file,
         download_dir=CACHE_DIR,
         hook_dir=HOOK_DIR,
-        gpu_memory_utilization=0.7,
-        max_model_len=2048,
+        gpu_memory_utilization=0.92,
+        max_model_len=1024,
+        max_num_batched_tokens=2048,
         trust_remote_code=True,
         dtype=torch.float16,
         enable_prefix_caching=False,
         enable_hook=True,
         tensor_parallel_size=1,
+        enforce_eager=True,
     )
-    # vLLM v0.21+ enables async scheduling by default, which desyncs the
-    # framework's forward-hook capture (execute_model fires before the
-    # batch's attn_metadata is ready, so query_start_loc is None and the
-    # hook returns without recording — no safetensors get written).
-    # Force sync scheduling on versions that accept the kwarg.
-    try:
-        return HookLLM(**base_kwargs, async_scheduling=False)
-    except TypeError:
-        return HookLLM(**base_kwargs)
 
 
 def stage_extract():
@@ -104,7 +96,7 @@ def stage_extract():
     llm = _make_llm(TRAIN_CFG)
 
     print("Extracting last-token hidden states across all layers...")
-    bundle = extract_activations(llm, pairs, batch_size=8)
+    bundle = extract_activations(llm, pairs, batch_size=4)
 
     save_activations(bundle, ACTIVATIONS_PATH)
     n_layers = len(bundle["activations"])
@@ -166,8 +158,6 @@ def stage_train():
 
 
 def stage_detect():
-    from vllm_hook_plugins import HookLLM
-
     examples = [
         "Q: What is the capital of France?\nA: Paris",
         "Q: What is the capital of France?\nA: London",
@@ -178,21 +168,7 @@ def stage_detect():
     ]
 
     print("Loading model with inference config (best layer only) + hallucination analyzer...")
-    llm = HookLLM(
-        model=MODEL,
-        worker_name="probe_hidden_states",
-        analyzer_name="hallucination",
-        config_file=INFER_CFG,
-        download_dir=CACHE_DIR,
-        hook_dir=HOOK_DIR,
-        gpu_memory_utilization=0.7,
-        max_model_len=2048,
-        trust_remote_code=True,
-        dtype=torch.float16,
-        enable_prefix_caching=False,
-        enable_hook=True,
-        tensor_parallel_size=1,
-    )
+    llm = _make_llm(INFER_CFG, analyzer_name="hallucination")
 
     print("Running detection on example prompts...\n")
     llm.generate(examples, temperature=0.0, max_tokens=1)
