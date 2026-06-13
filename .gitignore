@@ -8,3 +8,15 @@ output*.txt
 
 # random test configs
 model_configs/**/*.RANDOM_TEST.json
+
+# hallucination detection
+hallucination_detection/artifacts/
+
+# local virtualenv
+.venv/
+*.pyc
+*.pyo
+
+# local pip/vllm temp + cache dirs (kept off the small root partition)
+.localtmp/
+.pip-tmp/

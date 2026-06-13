@@ -9,6 +9,7 @@ from vllm_hook_plugins.analyzers.attention_tracker_analyzer import AttntrackerAn
 from vllm_hook_plugins.analyzers.core_reranker_analyzer import CorerAnalyzer
 from vllm_hook_plugins.analyzers.hidden_states_analyzer import HiddenStatesAnalyzer
 from vllm_hook_plugins.analyzers.science_hallucination_analyzer import ScienceHallucinationAnalyzer
+from vllm_hook_plugins.analyzers.hallucination_analyzer import HallucinationAnalyzer
 from vllm_hook_plugins.utils.spotlight.utils import generate_with_spotlight
 
 
@@ -25,6 +26,7 @@ def register_plugins():
     PluginRegistry.register_analyzer("core_reranker",         CorerAnalyzer)
     PluginRegistry.register_analyzer("hidden_states",         HiddenStatesAnalyzer)
     PluginRegistry.register_analyzer("science_hallucination", ScienceHallucinationAnalyzer)
+    PluginRegistry.register_analyzer("hallucination",         HallucinationAnalyzer)
 
 __all__ = [
     "PluginRegistry",
@@ -38,6 +40,7 @@ __all__ = [
     "CorerAnalyzer",
     "HiddenStatesAnalyzer",
     "ScienceHallucinationAnalyzer",
+    "HallucinationAnalyzer",
     "generate_with_spotlight",
     "register_plugins"
 ]

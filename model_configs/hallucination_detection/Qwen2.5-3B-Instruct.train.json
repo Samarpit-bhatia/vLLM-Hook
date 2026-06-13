@@ -1,0 +1,10 @@
+{
+  "model_info": {
+    "name": "Qwen/Qwen2.5-3B-Instruct",
+    "note": "Probe training: capture every transformer layer (1..36) so the layer sweep can pick the best one. Qwen2.5-3B has 36 hidden layers."
+  },
+  "hidden_states": {
+    "layers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
+    "mode": "last_token"
+  }
+}
