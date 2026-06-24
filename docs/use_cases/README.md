@@ -12,5 +12,6 @@ Each row maps a use case to its plugin code and the corresponding contributor.
 | Hidden-State Probe | `probe_hidden_states_worker.py` | `hidden_states_analyzer.py` | `demo_hiddenstate.py` | [@IRENEKO](https://github.com/IRENEKO) |
 | Science Hallucination Detector | `probe_hidden_states_worker.py` † | `science_hallucination_analyzer.py` | `demo_scihal.py` | [@IRENEKO](https://github.com/IRENEKO) |
 | [Spotlight](spotlight.md) | `spotlight_worker.py` | — | `demo_spotlight.py` | [@danishcontractor](https://github.com/danishcontractor) |
+| H-Node Detector | `probe_hidden_states_worker.py` † | `hallucination_analyzer.py` | `demo_halludetect.py` | [@Samarpit-bhatia](https://github.com/Samarpit-bhatia) |
 
 > † Reuses an existing worker.

@@ -3,15 +3,61 @@
 Used by ``HallucinationAnalyzer`` at inference and standalone for evaluation.
 Keeps a hard dependency only on numpy so it loads in the vLLM worker process
 without dragging in sklearn.
+
+Method: "H-Node Attack and Defense in Large Language Models"
+        Yocam, Vaidyan, Wang, 2026 — https://arxiv.org/abs/2506.07230
+Config-building (probe training) code:
+        https://github.com/Samarpit-bhatia/hnode-probe-builder
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from typing import List, Sequence, Union
+from typing import Dict, List, Sequence, Union
 
 import numpy as np
 
-from hallucination_detection.train_probe import ProbeArtifact
+
+@dataclass
+class ProbeArtifact:
+    """Loaded H-Node probe artifact (inference-only view)."""
+    model_name: str
+    best_layer: int
+    auc_per_layer: Dict[int, float]
+    hidden_size: int
+    weights: np.ndarray
+    bias: float
+    scaler_mean: np.ndarray
+    scaler_scale: np.ndarray
+    h_node_indices: np.ndarray
+    h_node_baselines: np.ndarray
+    baseline_percentile: int
+    n_h_nodes: int
+    train_size: int
+    eval_size: int
+
+    @classmethod
+    def load(cls, path: str) -> "ProbeArtifact":
+        data = np.load(path)
+        meta_path = path.replace(".npz", ".json")
+        with open(meta_path) as f:
+            meta = json.load(f)
+        return cls(
+            model_name=meta["model_name"],
+            best_layer=int(data["best_layer"]),
+            auc_per_layer={int(k): float(v) for k, v in meta["auc_per_layer"].items()},
+            hidden_size=int(data["hidden_size"]),
+            weights=data["weights"],
+            bias=float(data["bias"]),
+            scaler_mean=data["scaler_mean"],
+            scaler_scale=data["scaler_scale"],
+            h_node_indices=data["h_node_indices"],
+            h_node_baselines=data["h_node_baselines"],
+            baseline_percentile=int(data["baseline_percentile"]),
+            n_h_nodes=int(data["n_h_nodes"]),
+            train_size=int(data["train_size"]),
+            eval_size=int(data["eval_size"]),
+        )
 
 
 def _sigmoid(z: np.ndarray) -> np.ndarray:
