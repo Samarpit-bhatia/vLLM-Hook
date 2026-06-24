@@ -7,6 +7,5 @@ numpy>=1.24
 blake3
 zstandard
 
-# H-Node hallucination detection (examples/demo_halludetect.py)
+# science hallucination analyzer (science_hallucination_analyzer.py)
 scikit-learn
-datasets

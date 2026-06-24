@@ -9,8 +9,8 @@ output*.txt
 # random test configs
 model_configs/**/*.RANDOM_TEST.json
 
-# hallucination detection
-hallucination_detection/artifacts/
+# hallucination detection — ship probe.npz/json, ignore large activations dump
+hallucination_detection/artifacts/*.pt
 
 # local virtualenv
 .venv/
