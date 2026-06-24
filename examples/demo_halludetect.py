@@ -1,40 +1,28 @@
-"""End-to-end H-Node hallucination detection demo (post-refactor vLLM-Hook API).
+"""H-Node hallucination detection demo (inference-only).
 
-Three stages, each runs as `python examples/demo_halludetect.py <stage>`:
+Loads a pre-built probe artifact and scores example prompts via the
+registered ``hallucination`` analyzer.
 
-  extract  — load TruthfulQA, run prompts through Qwen2.5-1.5B-Instruct under
-             ProbeHiddenStatesWorker (vLLM-Hook), dump per-layer last-token
-             hidden states + labels to artifacts/activations.pt. Uses the
-             in-memory RPC path (output[0].probes).
+Usage:
+    python examples/demo_halludetect.py
 
-  train    — fit per-layer logistic-regression probes on the dump, pick the
-             best layer by held-out AUC, identify top-N H-Nodes, save
-             artifacts/probe.npz + probe.json. Rewrites the infer config so
-             its hidden_states.layers matches the chosen best layer.
+Requires:
+    hallucination_detection/artifacts/probe.npz  \\
+    hallucination_detection/artifacts/probe.json  — pre-built probe artifact.
 
-  detect   — reload the model with the (now-narrow) infer config and the
-             registered `hallucination` analyzer; score a few example prompts
-             via output[0].probes.
+    To build your own probe, see:
+    https://github.com/Samarpit-bhatia/hnode-probe-builder
 
-Run all three in order:
-    python examples/demo_halludetect.py extract
-    python examples/demo_halludetect.py train
-    python examples/demo_halludetect.py detect
+Method: "H-Node Attack and Defense in Large Language Models"
+        Yocam, Vaidyan, Wang, 2026 — https://arxiv.org/abs/2506.07230
 """
 from __future__ import annotations
 
-import json
 import multiprocessing as mp
 import os
 import sys
 from pathlib import Path
 
-# Make the project root importable so `hallucination_detection` resolves when
-# the script is invoked as `python examples/demo_halludetect.py ...`. The script
-# dir is `examples/`, so `vllm_hook_plugins` already resolves to the pip-installed
-# package; we APPEND (not insert at 0) the repo root so that top-level dir does
-# not shadow the installed `vllm_hook_plugins` package — it only adds
-# `hallucination_detection`.
 _root = str(Path(__file__).resolve().parent.parent)
 if _root not in sys.path:
     sys.path.append(_root)
@@ -50,9 +38,7 @@ MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 CACHE_DIR = "./cache/"
 HOOK_DIR = "/dev/shm/vllm_hook"
 ART_DIR = "./hallucination_detection/artifacts"
-ACTIVATIONS_PATH = os.path.join(ART_DIR, "activations.pt")
 PROBE_PATH = os.path.join(ART_DIR, "probe.npz")
-TRAIN_CFG = "model_configs/hallucination_detection/Qwen2.5-1.5B-Instruct.train.json"
 INFER_CFG = "model_configs/hallucination_detection/Qwen2.5-1.5B-Instruct.infer.json"
 
 
@@ -82,82 +68,15 @@ def _make_llm(config_file: str, analyzer_name: str = "hidden_states"):
     )
 
 
-def stage_extract():
-    from hallucination_detection.data import build_truthfulqa_pairs
-    from hallucination_detection.extract import extract_activations, save_activations
-
-    os.makedirs(ART_DIR, exist_ok=True)
-
-    print("Building TruthfulQA labeled pairs...")
-    pairs = build_truthfulqa_pairs(n_questions=300, seed=42)
-    print(f"  {len(pairs)} prompts ({sum(p.label == 0 for p in pairs)} grounded / "
-          f"{sum(p.label == 1 for p in pairs)} hallucinated)")
-
-    print("Loading model under ProbeHiddenStatesWorker (training config)...")
-    llm = _make_llm(TRAIN_CFG)
-
-    print("Extracting last-token hidden states across all layers...")
-    bundle = extract_activations(llm, pairs, batch_size=4)
-
-    save_activations(bundle, ACTIVATIONS_PATH)
-    n_layers = len(bundle["activations"])
-    hidden = next(iter(bundle["activations"].values())).shape[1]
-    print(f"Saved → {ACTIVATIONS_PATH}  (layers={n_layers}, hidden_size={hidden}, "
-          f"N={len(bundle['labels'])})")
-
-
-def stage_train():
-    from hallucination_detection.data import build_truthfulqa_pairs, split_pairs
-    import numpy as np
-
-    # Rebuild the same pairs (same seed) so we can apply a question-grouped
-    # train/eval mask matching what was extracted in prompt order.
-    pairs = build_truthfulqa_pairs(n_questions=300, seed=42)
-    train_pairs, eval_pairs = split_pairs(pairs, train_frac=0.7, seed=42)
-    train_qids = {p.question_id for p in train_pairs}
-
-    bundle = torch.load(ACTIVATIONS_PATH, map_location="cpu")
-    qids = bundle["question_ids"]
-    train_mask = np.array([q in train_qids for q in qids], dtype=bool)
-
-    print(f"Training H-Node probe on {train_mask.sum()} samples "
-          f"(eval={(~train_mask).sum()})")
-    activations = {l: t.numpy() for l, t in bundle["activations"].items()}
-    labels = bundle["labels"].numpy()
-
-    from hallucination_detection.train_probe import train_h_node_probe
-    artifact = train_h_node_probe(
-        activations=activations,
-        labels=labels,
-        model_name=MODEL,
-        train_mask=train_mask,
-        n_h_nodes=50,
-        baseline_percentile=80,
-        seed=42,
-    )
-    artifact.save(PROBE_PATH)
-
-    print(f"\nBest layer: {artifact.best_layer}  "
-          f"(AUC={artifact.auc_per_layer[artifact.best_layer]:.3f})")
-    sorted_aucs = sorted(artifact.auc_per_layer.items(), key=lambda kv: -kv[1])
-    print("Top 5 layers by AUC:")
-    for layer, auc in sorted_aucs[:5]:
-        print(f"  layer {layer:>3d}:  AUC = {auc:.3f}")
-
-    print(f"H-Nodes ({artifact.n_h_nodes}): "
-          f"first 10 indices = {artifact.h_node_indices[:10].tolist()}")
-    print(f"Saved → {PROBE_PATH}")
-
-    # Rewrite infer config so the next stage captures only this best layer.
-    with open(INFER_CFG, "r") as f:
-        cfg = json.load(f)
-    cfg["hidden_states"]["layers"] = [int(artifact.best_layer)]
-    with open(INFER_CFG, "w") as f:
-        json.dump(cfg, f, indent=2)
-    print(f"Updated {INFER_CFG} → layers=[{artifact.best_layer}]")
-
-
 def stage_detect():
+    if not os.path.exists(PROBE_PATH):
+        sys.exit(
+            f"Probe artifact not found at {PROBE_PATH}.\n"
+            "Download probe.npz + probe.json from:\n"
+            "  https://github.com/Samarpit-bhatia/hnode-probe-builder\n"
+            "and place them in hallucination_detection/artifacts/."
+        )
+
     examples = [
         "Q: What is the capital of France?\nA: Paris",
         "Q: What is the capital of France?\nA: London",
@@ -189,13 +108,4 @@ def stage_detect():
 
 
 if __name__ == "__main__":
-    stage = sys.argv[1] if len(sys.argv) > 1 else "detect"
-    if stage == "extract":
-        stage_extract()
-    elif stage == "train":
-        stage_train()
-    elif stage == "detect":
-        stage_detect()
-    else:
-        print(f"Unknown stage: {stage!r}. Use extract | train | detect.")
-        sys.exit(1)
+    stage_detect()

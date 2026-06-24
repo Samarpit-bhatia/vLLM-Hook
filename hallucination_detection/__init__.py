@@ -1,12 +1,17 @@
-"""H-Node hallucination detection for vLLM-Hook.
+"""H-Node hallucination detection — inference side for vLLM-Hook.
 
-Implements the detection half of "H-Node Attack and Defense in Large Language
-Models" (Yocam, Vaidyan, Wang, 2026): train a per-layer logistic-regression
-probe on last-token hidden states, select the best layer by AUC, and identify
-the top-N H-Nodes (hidden-state dimensions most associated with hallucination).
+Loads a pre-trained H-Node probe artifact and scores last-token hidden states
+to detect hallucination at inference time. Implements the detection half of:
+
+    "H-Node Attack and Defense in Large Language Models"
+    Yocam, Vaidyan, Wang, 2026 — https://arxiv.org/abs/2506.07230
+
+To build a probe artifact from scratch (extract activations, train probes,
+select H-Nodes), see the config-building repository:
+
+    https://github.com/Samarpit-bhatia/hnode-probe-builder
 """
 
-from hallucination_detection.data import build_truthfulqa_pairs
-from hallucination_detection.score import HNodeProbe, score_activations
+from hallucination_detection.score import HNodeProbe, ProbeArtifact, score_activations
 
-__all__ = ["build_truthfulqa_pairs", "HNodeProbe", "score_activations"]
+__all__ = ["ProbeArtifact", "HNodeProbe", "score_activations"]
