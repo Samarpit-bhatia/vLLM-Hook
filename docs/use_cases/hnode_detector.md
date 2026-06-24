@@ -108,7 +108,7 @@ The workflow:
 2. **Train** — fit per-layer logistic-regression probes, select best layer by AUC, identify H-Nodes
 3. **Drop in** — copy `probe.npz` + `probe.json` into `hallucination_detection/artifacts/` and update `best_layer` in the infer config
 
-See the repo's README and `notebooks/implement.ipynb` for a full Colab walkthrough.
+See the repo's README for setup and usage instructions.
 
 ---
 
