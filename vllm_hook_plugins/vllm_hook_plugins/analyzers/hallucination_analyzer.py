@@ -53,7 +53,7 @@ class HallucinationAnalyzer:
         self._probe_path: Optional[str] = None
 
     def _ensure_probe(self, probe_path: str):
-        from hallucination_detection.score import HNodeProbe
+        from vllm_hook_plugins.utils.hnode.score import HNodeProbe
 
         if self._probe is None or self._probe_path != probe_path:
             self._probe = HNodeProbe.load(probe_path)

@@ -7,8 +7,8 @@ Usage:
     python examples/demo_halludetect.py
 
 Requires:
-    hallucination_detection/artifacts/probe.npz  \\
-    hallucination_detection/artifacts/probe.json  — pre-built probe artifact.
+    vllm_hook_plugins/vllm_hook_plugins/utils/hnode/artifacts/probe.npz  \\
+    vllm_hook_plugins/vllm_hook_plugins/utils/hnode/artifacts/probe.json  — pre-built probe artifact.
 
     To build your own probe, see:
     https://github.com/Samarpit-bhatia/hnode-probe-builder
@@ -37,7 +37,7 @@ os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 CACHE_DIR = "./cache/"
 HOOK_DIR = "/dev/shm/vllm_hook"
-ART_DIR = "./hallucination_detection/artifacts"
+ART_DIR = "./vllm_hook_plugins/vllm_hook_plugins/utils/hnode/artifacts"
 PROBE_PATH = os.path.join(ART_DIR, "probe.npz")
 INFER_CFG = "model_configs/hallucination_detection/Qwen2.5-1.5B-Instruct.infer.json"
 
@@ -74,7 +74,7 @@ def stage_detect():
             f"Probe artifact not found at {PROBE_PATH}.\n"
             "Download probe.npz + probe.json from:\n"
             "  https://github.com/Samarpit-bhatia/hnode-probe-builder\n"
-            "and place them in hallucination_detection/artifacts/."
+            "and place them in vllm_hook_plugins/vllm_hook_plugins/utils/hnode/artifacts/."
         )
 
     examples = [

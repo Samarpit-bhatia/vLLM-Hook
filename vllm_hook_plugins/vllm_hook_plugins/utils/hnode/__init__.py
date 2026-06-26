@@ -12,6 +12,10 @@ select H-Nodes), see the config-building repository:
     https://github.com/Samarpit-bhatia/hnode-probe-builder
 """
 
-from hallucination_detection.score import HNodeProbe, ProbeArtifact, score_activations
+from vllm_hook_plugins.utils.hnode.score import (
+    HNodeProbe,
+    ProbeArtifact,
+    score_activations,
+)
 
 __all__ = ["ProbeArtifact", "HNodeProbe", "score_activations"]

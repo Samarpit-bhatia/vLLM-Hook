@@ -40,7 +40,7 @@ The model config (`model_configs/hallucination_detection/Qwen2.5-1.5B-Instruct.i
 
 ## Pre-built probe artifact
 
-A trained probe for `Qwen/Qwen2.5-1.5B-Instruct` is shipped in `hallucination_detection/artifacts/`:
+A trained probe for `Qwen/Qwen2.5-1.5B-Instruct` is shipped in `vllm_hook_plugins/vllm_hook_plugins/utils/hnode/artifacts/`:
 
 | Model | Best layer | AUC | H-Nodes | Trained on |
 |---|---|---|---|---|
@@ -81,7 +81,7 @@ llm.generate(prompts, SamplingParams(temperature=0.0, max_tokens=1),
              save_to_disk=True, run_id=run_id)
 
 result = llm.analyze(
-    analyzer_spec={"probe_path": "hallucination_detection/artifacts/probe.npz", "threshold": 0.5},
+    analyzer_spec={"probe_path": "vllm_hook_plugins/vllm_hook_plugins/utils/hnode/artifacts/probe.npz", "threshold": 0.5},
     run_id=run_id,
 )
 
@@ -106,7 +106,7 @@ To train a probe for a different model or dataset, use the config-building repos
 The workflow:
 1. **Extract** — run prompts through vLLM-Hook to dump per-layer hidden states (`activations.pt`)
 2. **Train** — fit per-layer logistic-regression probes, select best layer by AUC, identify H-Nodes
-3. **Drop in** — copy `probe.npz` + `probe.json` into `hallucination_detection/artifacts/` and update `best_layer` in the infer config
+3. **Drop in** — copy `probe.npz` + `probe.json` into `vllm_hook_plugins/vllm_hook_plugins/utils/hnode/artifacts/` and update `best_layer` in the infer config
 
 See the repo's README for setup and usage instructions.
 
